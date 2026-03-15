@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>릴레이 코딩 테스트</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            border-bottom: 1px solid #333;
+            background: #111;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            text-align: right;
+        }
+
+        .info-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #888;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        #total-players {
+            color: #4ec94e;
+        }
+
+        #my-id {
+            color: #d4d4d4;
+        }
+
+        #timer {
+            font-size: 32px;
+            letter-spacing: 4px;
+            color: #d4d4d4;
+        }
+
+        #timer.warning {
+            color: #c0392b;
+        }
+
+        #turn-info-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #turn-badge {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        #turn-info {
+            font-size: 16px;
+            color: #d4d4d4;
+            font-weight: bold;
+        }
+
+        #turn-info.my-turn-text {
+            color: #569cd6;
+        }
+
+        #turn-info.waiting-text {
+            color: #888;
+        }
+
+        #main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #111;
+            border-right: 1px solid #2a2a2a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #problem-list {
+            overflow-y: auto;
+            border-bottom: 1px solid #2a2a2a;
+            max-height: 40%;
+        }
+
+        .problem-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #1a1a1a;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .problem-item:hover {
+            background: #1a1a1a;
+        }
+
+        .problem-item.previewing {
+            background: #1e2e1e;
+            color: #4ec94e;
+            border-left: 3px solid #4ec94e;
+        }
+
+        .problem-item.active {
+            background: #1e1e2e;
+            color: #569cd6;
+            border-left: 3px solid #569cd6;
+        }
+
+        .problem-item.locked {
+            cursor: not-allowed;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .problem-item.completed {
+            text-decoration: line-through;
+            opacity: 0.3;
+            pointer-events: none;
+            background: #0a0a0a;
+            cursor: not-allowed;
+        }
+
+        #problem-desc {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        #problem-desc h3 {
+            color: #569cd6;
+            margin-top: 0;
+        }
+
+        .problem-example-label {
+            font-weight: bold;
+        }
+
+        .problem-example-box {
+            background: #000;
+            padding: 10px;
+        }
+
+        .problem-divider {
+            border: 0.5px solid #222;
+        }
+
+        #editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 12px;
+        }
+
+        #queue-status {
+            background: #111;
+            border: 1px solid #333;
+            padding: 12px;
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .queue-item-active {
+            background: #569cd6;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .queue-item-me {
+            border: 1px solid #569cd6;
+            color: #569cd6;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .queue-arrow {
+            color: #444;
+        }
+
+        textarea {
+            background: #111;
+            color: #d4d4d4;
+            border: 1px solid #333;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+            line-height: 1.5;
+        }
+
+        #code-editor {
+            flex: 1;
+        }
+
+        #input-area {
+            height: 80px;
+        }
+
+        textarea:disabled {
+            background: #0e0e0e;
+            color: #444;
+        }
+
+        textarea.my-turn {
+            border-color: #569cd6;
+            box-shadow: 0 0 10px rgba(86, 156, 214, 0.2);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 24px;
+            cursor: pointer;
+            background: #2d2d2d;
+            color: #d4d4d4;
+            border: 1px solid #444;
+            font-family: inherit;
+            transition: 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #3a3a3a;
+            border-color: #666;
+        }
+
+        button:disabled {
+            color: #444;
+            border-color: #222;
+            cursor: not-allowed;
+        }
+
+        select {
+            padding: 10px;
+            background: #2d2d2d;
+            color: #d4d4d4;
+            border: 1px solid #444;
+        }
+
+        #result {
+            background: #000;
+            border: 1px solid #2a2a2a;
+            padding: 15px;
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+            color: #d4d4d4;
+        }
+
+        .tc-result {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .tc-badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 2px;
+        }
+
+        .tc-badge.pass {
+            background: #1a3a1a;
+            color: #4ec94e;
+        }
+
+        .tc-badge.fail {
+            background: #3a1a1a;
+            color: #c0392b;
+        }
+
+        .tc-detail {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .tc-all-pass {
+            color: #4ec94e;
+            font-size: 14px;
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2a2a;
+            margin-bottom: 4px;
+        }
+
+        .tc-all-fail {
+            color: #c0392b;
+            font-size: 14px;
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2a2a;
+            margin-bottom: 4px;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #569cd6;
+            color: #fff;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #game-over-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ranking-board {
+            background: #111;
+            padding: 40px;
+            border: 1px solid #333;
+            min-width: 500px;
+        }
+
+        .rank-item {
+            margin-bottom: 18px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .rank-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank-item b {
+            font-size: 18px;
+            color: #d4d4d4;
+        }
+
+        .rank-item small {
+            color: #888;
+            display: block;
+            margin-top: 8px;
+        }
+
+        .restart-btn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: #569cd6;
+            color: #fff;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .restart-btn:hover {
+            background: #4a8bbf;
+        }
+
+        #start-btn {
+            background: #c0392b;
+            border-color: #a93226;
+            color: white;
+            font-weight: bold;
+        }
+
+        #start-btn:hover:not(:disabled) {
+            background: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <div id="timer">--:--</div>
+        <div id="turn-info-wrap">
+            <div id="turn-badge">현재 턴</div>
+            <div id="turn-info" class="waiting-text">대기 중...</div>
+        </div>
+        <div class="header-right">
+            <div class="info-group">
+                <div class="info-label">총 인원</div>
+                <div id="total-players" class="info-value">-명</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">MY ID</div>
+                <div id="my-id" class="info-value"></div>
+            </div>
+            <button id="start-btn" style="display:none;">테스트 시작</button>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="sidebar">
+            <div id="problem-list"></div>
+            <div id="problem-desc">문제를 선택하세요.</div>
+        </div>
+        <div id="editor-area">
+            <div id="queue-status">상태 로딩 중...</div>
+            <textarea id="code-editor" disabled></textarea>
+            <div class="btn-group">
+                <select id="lang-select">
+                    <option value="cpp">C++</option>
+                    <option value="python">Python</option>
+                    <option value="c">C</option>
+                </select>
+                <button id="run-btn" onclick="runCode()" disabled>실행</button>
+                <button id="pass-btn" onclick="passTurn()" disabled>턴 넘기기</button>
+            </div>
+            <textarea id="input-area" placeholder="입력값이 필요하면 여기에 작성하세요..."></textarea>
+            <div id="result">결과 표시창</div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="game-over-modal">
+        <div class="ranking-board" id="final-ranking"></div>
+        <button class="restart-btn" onclick="requestRestart()">새 라운드 시작</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag));
+        }
+
+        let isMyTurn = false;
+        let isHost = false;
+        let currentProblemId = null;
+        let isGameStarted = false;
+        let currentPlayerShown = null;
+        let problemsData = [];
+        let previewProblemId = null;
+
+        const socket = io();
+
+        socket.on('connect', () => {
+            document.getElementById('my-id').innerText = socket.id.substring(0, 6);
+        });
+
+        document.getElementById('lang-select').onchange = () => {
+            if (!isMyTurn) return;
+            socket.emit('lang_update', { lang: document.getElementById('lang-select').value });
+        };
+
+        function showToast(msg, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        document.getElementById('start-btn').onclick = () => {
+            if (!previewProblemId) {
+                showToast('먼저 문제를 선택해주세요!');
+                return;
+            }
+            socket.emit('start_test');
+        };
+
+        fetch('/problems')
+            .then(res => res.json())
+            .then(problems => {
+                problemsData = problems;
+                const list = document.getElementById('problem-list');
+                problems.forEach(p => {
+                    const item = document.createElement('div');
+                    item.className = 'problem-item';
+                    item.id = `p-${p.id}`;
+                    item.innerHTML = `문제 ${p.id}: ${p.title}`;
+                    item.onclick = () => {
+                        if (isGameStarted) return;
+                        if (item.classList.contains('completed')) return;
+                        showProblemDesc(p);
+                        if (isHost) {
+                            previewProblemId = p.id;
+                            document.querySelectorAll('.problem-item').forEach(el => el.classList.remove('previewing'));
+                            item.classList.add('previewing');
+                            socket.emit('select_problem', p);
+                        }
+                    };
+                    list.appendChild(item);
+                });
+            });
+
+        socket.on('force_pass', () => {
+            passTurn();
+        });
+
+        socket.on('timer_update', (data) => {
+            const timerEl = document.getElementById('timer');
+            const m = Math.floor(data.timeLeft / 60);
+            const s = data.timeLeft % 60;
+            timerEl.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            if (data.timeLeft <= 10) {
+                timerEl.classList.add('warning');
+            } else {
+                timerEl.classList.remove('warning');
+            }
+        });
+
+        socket.on('status_update', (data) => {
+            if (data.totalPlayers !== undefined) {
+                document.getElementById('total-players').innerText = `${data.totalPlayers}명`;
+                const queueBar = document.getElementById('queue-status');
+                if (!data.isGameStarted) {
+                    const pList = data.playerList.map(pid =>
+                        pid === data.myId ? `<b class="my-turn-text">${pid}(나)</b>` : pid
+                    ).join(', ');
+                    queueBar.innerHTML = `<b>대기실 접속자:</b> ${pList}`;
+                } else {
+                    const qList = data.queueList.map((pid, idx) => {
+                        const isMe = pid === data.myId;
+                        const isCurrent = idx === 0;
+                        if (isCurrent) {
+                            return `<span class="queue-item-active">${pid}${isMe ? '(나)' : ''}</span>`;
+                        } else if (isMe) {
+                            return `<span class="queue-item-me">${pid}(나)</span>`;
+                        } else {
+                            return `<span>${pid}</span>`;
+                        }
+                    }).join(' <span class="queue-arrow">-&gt;</span> ');
+                    queueBar.innerHTML = `<b>진행 순서:</b> ${qList}`;
+                }
+            }
+
+            isGameStarted = data.isGameStarted;
+            isHost = data.isHost;
+            const editor = document.getElementById('code-editor');
+            const turnInfo = document.getElementById('turn-info');
+            const startBtn = document.getElementById('start-btn');
+            const langSelect = document.getElementById('lang-select');
+
+            if (data.usedProblems) {
+                data.usedProblems.forEach(pid => {
+                    const el = document.getElementById(`p-${pid}`);
+                    if (el) {
+                        el.classList.add('completed');
+                        el.classList.remove('active', 'locked', 'previewing');
+                    }
+                });
+            }
+
+            if (!isGameStarted) {
+                editor.disabled = true;
+                document.getElementById('run-btn').disabled = true;
+                document.getElementById('pass-btn').disabled = true;
+
+                if (data.selectedProblem) {
+                    const found = problemsData.find(p => p.id === data.selectedProblem.id);
+                    if (found && !document.getElementById(`p-${found.id}`)?.classList.contains('completed')) {
+                        showProblemDesc(found);
+                        document.querySelectorAll('.problem-item').forEach(el => el.classList.remove('previewing'));
+                        const el = document.getElementById(`p-${found.id}`);
+                        if (el) el.classList.add('previewing');
+                    }
+                }
+
+                if (data.myOrder === 1 && isHost) {
+                    startBtn.style.display = 'block';
+                    turnInfo.className = 'my-turn-text';
+                    turnInfo.innerText = '문제를 고르고 테스트 시작을 누르세요';
+                } else {
+                    startBtn.style.display = 'none';
+                    turnInfo.className = 'waiting-text';
+                    turnInfo.innerText = '방장이 게임을 시작하기를 기다리는 중...';
+                }
+                return;
+            }
+
+            startBtn.style.display = 'none';
+
+            if (!isMyTurn) {
+                editor.value = data.currentCode;
+                langSelect.value = data.currentLang;
+            }
+
+            if (socket.id === data.currentPlayer) {
+                isMyTurn = true;
+                editor.disabled = false;
+                editor.classList.add('my-turn');
+                document.getElementById('run-btn').disabled = false;
+                document.getElementById('pass-btn').disabled = false;
+                turnInfo.className = 'my-turn-text';
+                turnInfo.innerText = '내 차례';
+            } else {
+                isMyTurn = false;
+                editor.disabled = true;
+                editor.classList.remove('my-turn');
+                document.getElementById('run-btn').disabled = true;
+                document.getElementById('pass-btn').disabled = true;
+                turnInfo.className = 'waiting-text';
+                turnInfo.innerText = data.myOrder > 0 ? `${data.myOrder}번째 대기 중` : '관전 모드';
+            }
+
+            if (data.currentPlayer && data.currentPlayer !== currentPlayerShown) {
+                currentPlayerShown = data.currentPlayer;
+                if (socket.id === data.currentPlayer) {
+                    showToast('내 차례입니다!', 4000);
+                }
+            }
+        });
+
+        socket.on('problem_locked', (p) => {
+            currentProblemId = p.id;
+            showProblemDesc(p);
+            document.querySelectorAll('.problem-item').forEach(el => {
+                el.classList.remove('previewing');
+                if (!el.classList.contains('completed')) el.classList.add('locked');
+                if (el.id === `p-${p.id}`) {
+                    el.classList.add('active');
+                    el.classList.remove('locked');
+                }
+            });
+        });
+
+        function showProblemDesc(p) {
+            document.getElementById('problem-desc').innerHTML = `
+                <h3>${p.title}</h3>
+                <p>${p.description}</p>
+                <hr class="problem-divider">
+                <strong class="problem-example-label">[예제 입력]</strong>
+                <pre class="problem-example-box">${p.example.input}</pre>
+                <strong class="problem-example-label">[예제 출력]</strong>
+                <pre class="problem-example-box">${p.example.output}</pre>
+            `;
+        }
+
+        socket.on('game_over', (data) => {
+            const board = document.getElementById('final-ranking');
+            const sorted = Object.entries(data.finalScores).sort((a, b) => b[1].totalScore - a[1].totalScore);
+            board.innerHTML = "<h2 style='text-align:center; color:#569cd6'>ROUND OVER</h2>" +
+                sorted.map(([id, s], i) => `
+                    <div class="rank-item">
+                        <b ${i === 0 ? 'style="color:#ff0"' : ''}>${i + 1}등 [${id.substring(0, 5)}]</b> : 누적 ${s.totalScore}pt
+                        <span style="color:#4ec94e; font-size:15px; margin-left:10px;">(이번 라운드 +${s.finalScore}pt)</span>
+                        <small>기본 ${s.baseScore}pt x 생존율 ${(s.survivalRate * 100).toFixed(1)}%</small>
+                    </div>
+                `).join('');
+            document.getElementById('game-over-modal').style.display = 'flex';
+        });
+
+        socket.on('game_reset', () => {
+            currentProblemId = null;
+            previewProblemId = null;
+            isMyTurn = false;
+            isHost = false;
+            isGameStarted = false;
+            currentPlayerShown = null;
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('game-over-modal').style.display = 'none';
+            document.querySelectorAll('.problem-item').forEach(el => el.classList.remove('active', 'locked', 'previewing'));
+            document.getElementById('problem-desc').innerText = '문제를 선택하세요.';
+            document.getElementById('code-editor').value = '';
+            document.getElementById('result').innerText = '결과 표시창';
+            document.getElementById('input-area').value = '';
+            document.getElementById('timer').innerText = '--:--';
+            document.getElementById('turn-info').innerText = '대기 중...';
+            document.getElementById('turn-info').className = 'waiting-text';
+            document.getElementById('queue-status').innerHTML = '상태 로딩 중...';
+        });
+
+        function requestRestart() { socket.emit('request_restart'); }
+
+        async function runCode() {
+            if (!isMyTurn) return;
+            const runBtn = document.getElementById('run-btn');
+            const passBtn = document.getElementById('pass-btn');
+            const code = document.getElementById('code-editor').value;
+            const lang = document.getElementById('lang-select').value;
+            const input = document.getElementById('input-area').value;
+            const resultDiv = document.getElementById('result');
+
+            if (!code.trim()) return showToast('코드를 입력하세요!');
+
+            runBtn.disabled = true;
+            passBtn.disabled = true;
+            resultDiv.innerText = '실행 중...';
+
+            try {
+                const res = await fetch('/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, lang, input })
+                });
+                const data = await res.json();
+                resultDiv.style.color = data.success ? '#d4d4d4' : '#c0392b';
+                resultDiv.innerText = data.success ? `[${data.time}]\n\n${data.output}` : data.output || data.error;
+            } catch (err) {
+                resultDiv.innerText = '서버 연결 실패';
+            } finally {
+                if (isMyTurn) {
+                    runBtn.disabled = false;
+                    passBtn.disabled = false;
+                }
+            }
+        }
+
+        async function passTurn() {
+            if (!isMyTurn) return;
+            const runBtn = document.getElementById('run-btn');
+            const passBtn = document.getElementById('pass-btn');
+            const code = document.getElementById('code-editor').value;
+            const lang = document.getElementById('lang-select').value;
+            const resultDiv = document.getElementById('result');
+
+            runBtn.disabled = true;
+            passBtn.disabled = true;
+
+            if (currentProblemId) {
+                resultDiv.innerHTML = '채점 중...';
+                try {
+                    const res = await fetch('/judge', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, lang, problemId: currentProblemId })
+                    });
+                    const data = await res.json();
+                    if (data.results) {
+                        const passCount = data.results.filter(r => r.pass).length;
+                        const total = data.results.length;
+                        let html = data.allPass
+                            ? `<div class="tc-all-pass">전체 통과 (${passCount}/${total})</div>`
+                            : `<div class="tc-all-fail">일부 실패 (${passCount}/${total})</div>`;
+                        data.results.forEach(r => {
+                            html += `
+                            <div class="tc-result">
+                                <span class="tc-badge ${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span>
+                                <span>테스트 ${r.index}</span>
+                                <span class="tc-detail">${r.time}</span>
+                                ${r.reason ? `<span class="tc-detail">${escapeHTML(r.reason)}</span>` : ''}
+                            </div>`;
+                        });
+                        resultDiv.innerHTML = html;
+                    }
+                } catch (err) {
+                    resultDiv.innerText = '서버 연결 실패';
+                }
+            }
+
+            isMyTurn = false;
+            currentPlayerShown = null;
+            const editor = document.getElementById('code-editor');
+            editor.disabled = true;
+            editor.classList.remove('my-turn');
+
+            socket.emit('turn_finished', { code, lang });
+        }
+
+        window.onload = function () {
+            document.getElementById('code-editor').addEventListener('keydown', function (e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 4;
+                }
+            });
+        };
+    </script>
+</body>
+</html>

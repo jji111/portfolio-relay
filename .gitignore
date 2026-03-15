@@ -1,0 +1,19 @@
+# 의존성 (이미 있으니 확인만!)
+node_modules/
+
+# 운영체제 쓰레기 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 환경 변수 및 비밀번호 (보안 필수!)
+.env
+*.env.local
+
+# 로그 파일 (디버깅 기록)
+*.log
+npm-debug.log*
+
+# 에디터 설정 (개인 설정이므로 공유 X)
+.vscode/
+.idea/

@@ -1,0 +1,66 @@
+[
+    {
+        "id": 1,
+        "title": "두 수의 합",
+        "description": "두 정수 A, B가 주어졌을 때 A+B를 출력하시오.",
+        "inputDescription": "첫째 줄에 두 정수 A, B가 공백으로 구분되어 주어진다. (1 ≤ A, B ≤ 1000)",
+        "outputDescription": "A+B를 출력한다.",
+        "timeLimit": 25,
+        "example": {
+            "input": "3 5",
+            "output": "8"
+        },
+        "testCases": [
+            { "input": "3 5",   "output": "8"  },
+            { "input": "10 20", "output": "30" }
+        ]
+    },
+    {
+        "id": 2,
+        "title": "최솟값 찾기",
+        "description": "N개의 정수가 주어졌을 때 그 중 최솟값을 출력하시오.",
+        "inputDescription": "첫째 줄에 정수의 개수 N이 주어진다. (1 ≤ N ≤ 100)\n둘째 줄에 N개의 정수가 공백으로 구분되어 주어진다. (-1000 ≤ 각 정수 ≤ 1000)",
+        "outputDescription": "최솟값을 출력한다.",
+        "timeLimit": 40,
+        "example": {
+            "input": "5\n3 1 4 1 5",
+            "output": "1"
+        },
+        "testCases": [
+            { "input": "5\n3 1 4 1 5", "output": "1"  },
+            { "input": "4\n-5 -3 0 2", "output": "-5" }
+        ]
+    },
+    {
+        "id": 3,
+        "title": "문자열 뒤집기",
+        "description": "문자열 S가 주어졌을 때 S를 뒤집어서 출력하시오.",
+        "inputDescription": "첫째 줄에 문자열 S가 주어진다. (1 ≤ |S| ≤ 100, 알파벳 소문자로만 구성)",
+        "outputDescription": "S를 뒤집은 문자열을 출력한다.",
+        "timeLimit": 90,
+        "example": {
+            "input": "hello",
+            "output": "olleh"
+        },
+        "testCases": [
+            { "input": "hello",   "output": "olleh"   },
+            { "input": "racecar", "output": "racecar" }
+        ]
+    },
+    {
+        "id": 4,
+        "title": "피보나치 수열",
+        "description": "N번째 피보나치 수를 구하시오.",
+        "inputDescription": "첫째 줄에 정수 N이 주어진다. (0 ≤ N ≤ 30)",
+        "outputDescription": "N번째 피보나치 수를 출력한다.",
+        "timeLimit": 120,
+        "example": {
+            "input": "10",
+            "output": "55"
+        },
+        "testCases": [
+            { "input": "10", "output": "55" },
+            { "input": "20", "output": "6765" }
+        ]
+    }
+]
