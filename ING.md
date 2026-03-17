@@ -56,7 +56,7 @@ ex) C는 클래스 X , C++은 class_specifier, python 은 class_definition
 피드백4
 1. 문제 난이도만 보이고 블라인드 문제로 시작할 수 있게 
 2. 모바일 최적화 
-3. 문제 랜덤 생성
+3. 문제 랜덤 생성 - API 활용해서 난이도별
 
 
 피드백5

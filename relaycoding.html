@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <title>릴레이 코딩 테스트</title>
@@ -437,6 +438,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="header">
         <div id="timer">--:--</div>
@@ -460,6 +462,19 @@
     <div id="main">
         <div id="sidebar">
             <div id="problem-list"></div>
+            <div style="padding: 10px; border-bottom: 1px solid #2a2a2a;">
+                <select id="ai-difficulty"
+                    style="width:100%; margin-bottom:8px; padding:6px; background:#2d2d2d; color:#d4d4d4; border:1px solid #444; font-family:inherit;">
+                    <option value="easy">쉬움</option>
+                    <option value="medium">중간</option>
+                    <option value="hard">어려움</option>
+                </select>
+                <button id="ai-gen-btn" onclick="generateProblem()"
+                    style="width:100%; background:#1a3a1a; color:#4ec94e; border:1px solid #2a5a2a;">
+                    AI 문제 생성
+                </button>
+                <div id="ai-status" style="font-size:11px; color:#888; margin-top:4px; text-align:center;"></div>
+            </div>
             <div id="problem-desc">문제를 선택하세요.</div>
         </div>
         <div id="editor-area">
@@ -542,7 +557,7 @@
                     const item = document.createElement('div');
                     item.className = 'problem-item';
                     item.id = `p-${p.id}`;
-                    item.innerHTML = `문제 ${p.id}: ${p.title}`;
+                    item.textContent = `문제 ${p.id}: ${p.title}`;
                     item.onclick = () => {
                         if (isGameStarted) return;
                         if (item.classList.contains('completed')) return;
@@ -580,19 +595,20 @@
                 const queueBar = document.getElementById('queue-status');
                 if (!data.isGameStarted) {
                     const pList = data.playerList.map(pid =>
-                        pid === data.myId ? `<b class="my-turn-text">${pid}(나)</b>` : pid
+                        pid === data.myId ? `<b class="my-turn-text">${escapeHTML(pid)}(나)</b>` : escapeHTML(pid)
                     ).join(', ');
                     queueBar.innerHTML = `<b>대기실 접속자:</b> ${pList}`;
                 } else {
                     const qList = data.queueList.map((pid, idx) => {
                         const isMe = pid === data.myId;
                         const isCurrent = idx === 0;
+                        const safePid = escapeHTML(pid);
                         if (isCurrent) {
-                            return `<span class="queue-item-active">${pid}${isMe ? '(나)' : ''}</span>`;
+                            return `<span class="queue-item-active">${safePid}${isMe ? '(나)' : ''}</span>`;
                         } else if (isMe) {
-                            return `<span class="queue-item-me">${pid}(나)</span>`;
+                            return `<span class="queue-item-me">${safePid}(나)</span>`;
                         } else {
-                            return `<span>${pid}</span>`;
+                            return `<span>${safePid}</span>`;
                         }
                     }).join(' <span class="queue-arrow">-&gt;</span> ');
                     queueBar.innerHTML = `<b>진행 순서:</b> ${qList}`;
@@ -690,28 +706,76 @@
         });
 
         function showProblemDesc(p) {
-            document.getElementById('problem-desc').innerHTML = `
-                <h3>${p.title}</h3>
-                <p>${p.description}</p>
-                <hr class="problem-divider">
-                <strong class="problem-example-label">[예제 입력]</strong>
-                <pre class="problem-example-box">${p.example.input}</pre>
-                <strong class="problem-example-label">[예제 출력]</strong>
-                <pre class="problem-example-box">${p.example.output}</pre>
-            `;
+            const desc = document.getElementById('problem-desc');
+            desc.innerHTML = '';
+
+            const h3 = document.createElement('h3');
+            h3.textContent = p.title;
+
+            const para = document.createElement('p');
+            para.textContent = p.description;
+
+            const hr = document.createElement('hr');
+            hr.className = 'problem-divider';
+
+            const inputLabel = document.createElement('strong');
+            inputLabel.className = 'problem-example-label';
+            inputLabel.textContent = '[예제 입력]';
+
+            const inputPre = document.createElement('pre');
+            inputPre.className = 'problem-example-box';
+            inputPre.textContent = p.example.input;
+
+            const outputLabel = document.createElement('strong');
+            outputLabel.className = 'problem-example-label';
+            outputLabel.textContent = '[예제 출력]';
+
+            const outputPre = document.createElement('pre');
+            outputPre.className = 'problem-example-box';
+            outputPre.textContent = p.example.output;
+
+            desc.appendChild(h3);
+            desc.appendChild(para);
+            desc.appendChild(hr);
+            desc.appendChild(inputLabel);
+            desc.appendChild(inputPre);
+            desc.appendChild(outputLabel);
+            desc.appendChild(outputPre);
         }
 
         socket.on('game_over', (data) => {
             const board = document.getElementById('final-ranking');
             const sorted = Object.entries(data.finalScores).sort((a, b) => b[1].totalScore - a[1].totalScore);
-            board.innerHTML = "<h2 style='text-align:center; color:#569cd6'>ROUND OVER</h2>" +
-                sorted.map(([id, s], i) => `
-                    <div class="rank-item">
-                        <b ${i === 0 ? 'style="color:#ff0"' : ''}>${i + 1}등 [${id.substring(0, 5)}]</b> : 누적 ${s.totalScore}pt
-                        <span style="color:#4ec94e; font-size:15px; margin-left:10px;">(이번 라운드 +${s.finalScore}pt)</span>
-                        <small>기본 ${s.baseScore}pt x 생존율 ${(s.survivalRate * 100).toFixed(1)}%</small>
-                    </div>
-                `).join('');
+
+            board.innerHTML = '';
+
+            const title = document.createElement('h2');
+            title.style.textAlign = 'center';
+            title.style.color = '#569cd6';
+            title.textContent = 'ROUND OVER';
+            board.appendChild(title);
+
+            sorted.forEach(([id, s], i) => {
+                const item = document.createElement('div');
+                item.className = 'rank-item';
+
+                const b = document.createElement('b');
+                if (i === 0) b.style.color = '#ff0';
+                b.textContent = `${i + 1}등 [${id.substring(0, 5)}] : 누적 ${s.totalScore}pt`;
+
+                const span = document.createElement('span');
+                span.style.cssText = 'color:#4ec94e; font-size:15px; margin-left:10px;';
+                span.textContent = `(이번 라운드 +${s.finalScore}pt)`;
+
+                const small = document.createElement('small');
+                small.textContent = `기본 ${s.baseScore}pt x 생존율 ${(s.survivalRate * 100).toFixed(1)}%`;
+
+                item.appendChild(b);
+                item.appendChild(span);
+                item.appendChild(small);
+                board.appendChild(item);
+            });
+
             document.getElementById('game-over-modal').style.display = 'flex';
         });
 
@@ -783,7 +847,7 @@
             passBtn.disabled = true;
 
             if (currentProblemId) {
-                resultDiv.innerHTML = '채점 중...';
+                resultDiv.innerText = '채점 중...';
                 try {
                     const res = await fetch('/judge', {
                         method: 'POST',
@@ -801,8 +865,8 @@
                             html += `
                             <div class="tc-result">
                                 <span class="tc-badge ${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span>
-                                <span>테스트 ${r.index}</span>
-                                <span class="tc-detail">${r.time}</span>
+                                <span>테스트 ${escapeHTML(String(r.index))}</span>
+                                <span class="tc-detail">${escapeHTML(r.time)}</span>
                                 ${r.reason ? `<span class="tc-detail">${escapeHTML(r.reason)}</span>` : ''}
                             </div>`;
                         });
@@ -833,6 +897,51 @@
                 }
             });
         };
+
+        async function generateProblem() {
+            const btn = document.getElementById('ai-gen-btn');
+            const status = document.getElementById('ai-status');
+            const difficulty = document.getElementById('ai-difficulty').value;
+
+            btn.disabled = true;
+            status.innerText = 'AI가 문제를 생성 중입니다...';
+
+            try {
+                const res = await fetch('/generate-problem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ difficulty, currentProblems: problemsData })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    problemsData.push(data.problem);
+                    const list = document.getElementById('problem-list');
+                    const item = document.createElement('div');
+                    item.className = 'problem-item';
+                    item.dataset.id = data.problem.id;
+                    item.textContent = `[AI] ${data.problem.title}`;
+                    item.onclick = () => {
+                        document.querySelectorAll('.problem-item').forEach(el => el.classList.remove('previewing'));
+                        item.classList.add('previewing');
+                        showProblemDesc(data.problem);
+                    };
+                    list.appendChild(item);
+                    status.style.color = '#4ec94e';
+                    status.innerText = `"${data.problem.title}" 생성 완료!`;
+                } else {
+                    status.style.color = '#c0392b';
+                    status.innerText = data.error || '생성 실패';
+                }
+            } catch (e) {
+                status.style.color = '#c0392b';
+                status.innerText = '서버 연결 실패';
+            }
+
+            btn.disabled = false;
+        }
+
     </script>
 </body>
+
 </html>

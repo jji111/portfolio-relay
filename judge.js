@@ -42,6 +42,7 @@ function buildDockerCmd(lang, fileId, fileName, inputFileName) {
     }
     return null;
 }
+const ext = { python: '.py', cpp: '.cpp', c: '.c' };
 
 const runCode = (userCode, lang, customInput = '') => {
     return new Promise((resolve) => {
@@ -49,10 +50,9 @@ const runCode = (userCode, lang, customInput = '') => {
         if (!check.safe) return resolve({ success: false, output: `보안 에러: '${check.word}' 사용이 금지되어 있습니다.` });
 
         const fileId = uuidv4();
-        const extMap = { python: '.py', cpp: '.cpp', c: '.c' };
-        if (!extMap[lang]) return resolve({ success: false, output: '지원하지 않는 언어입니다.' });
+        if (!ext[lang]) return resolve({ success: false, output: '지원하지 않는 언어입니다.' });
 
-        const fileName = `temp_${fileId}${extMap[lang]}`;
+        const fileName = `temp_${fileId}${ext[lang]}`;
         const filePath = path.join(__dirname, fileName);
         fs.writeFileSync(filePath, userCode);
 
@@ -72,8 +72,8 @@ const runCode = (userCode, lang, customInput = '') => {
                 try { if (fs.existsSync(path.join(__dirname, inputFileName))) fs.unlinkSync(path.join(__dirname, inputFileName)); } catch (e) {}
             }
             if (error) {
-                if (error.killed || error.signal === 'SIGTERM') return resolve({ success: false, output: '시간 초과 (5초 이상 실행)' });
-                if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return resolve({ success: false, output: '출력 초과 (최대 512KB)' });
+                if (error.killed || error.signal === 'SIGTERM') return resolve({ success: false, output: '시간 초과 (5초)' });
+                if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return resolve({ success: false, output: '출력 초과 (512KB)' });
                 return resolve({ success: false, output: stderr || error.message });
             }
             resolve({ success: true, output: stdout, time: `${executionTime} ms` });
@@ -84,11 +84,11 @@ const runCode = (userCode, lang, customInput = '') => {
 const judgeCode = (userCode, lang, testCases) => {
     return new Promise(async (resolve) => {
         const check = isSafeCode(userCode, lang);
-        if (!check.safe) return resolve({ success: false, results: [], error: `보안 에러: '${check.word}' 사용이 금지되어 있습니다.` });
+        if (!check.safe) return resolve({ success: false, results: [], error: `보안 에러: '${check.word}' 사용 X` });
 
-        const extMap = { python: '.py', cpp: '.cpp', c: '.c' };
+        const ext = { python: '.py', cpp: '.cpp', c: '.c' };
         const fileId = uuidv4();
-        const fileName = `temp_${fileId}${extMap[lang]}`;
+        const fileName = `temp_${fileId}${ext[lang]}`;
         const filePath = path.join(__dirname, fileName);
         fs.writeFileSync(filePath, userCode);
 

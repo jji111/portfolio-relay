@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -11,7 +12,7 @@ const io = new Server(server);
 const { runCode, judgeCode } = require('./judge');
 const { analyzeTurn, calcFinalScores } = require('./scorer');
 const problems = require('./problems.json');
-
+const { generateProblemHandler } = require('./ai-generate');
 app.use(express.json({ limit: '64kb' }));
 
 app.get('/', (req, res) => {
@@ -48,6 +49,8 @@ app.post('/judge', async (req, res) => {
         res.status(500).json({ error: '서버 내부 오류' });
     }
 });
+
+app.post('/generate-problem', generateProblemHandler);
 
 function shuffle(arr) {
     const a = [...arr];
