@@ -36,12 +36,14 @@ function buildDockerCmd(lang, fileId, fileName, inputFileName) {
     if (lang === 'python') {
         return `docker run ${securityFlags} python:3.9-slim sh -c "python /app/${fileName} ${inputRedirect}"`;
     } else if (lang === 'cpp') {
+        
         return `docker run ${securityFlags} gcc:latest sh -c "g++ /app/${fileName} -o /tmp/${fileId}.out && /tmp/${fileId}.out ${inputRedirect}"`;
     } else if (lang === 'c') {
         return `docker run ${securityFlags} gcc:latest sh -c "gcc /app/${fileName} -o /tmp/${fileId}.out && /tmp/${fileId}.out ${inputRedirect}"`;
     }
     return null;
 }
+
 const ext = { python: '.py', cpp: '.cpp', c: '.c' };
 
 const runCode = (userCode, lang, customInput = '') => {
@@ -86,7 +88,6 @@ const judgeCode = (userCode, lang, testCases) => {
         const check = isSafeCode(userCode, lang);
         if (!check.safe) return resolve({ success: false, results: [], error: `보안 에러: '${check.word}' 사용 X` });
 
-        const ext = { python: '.py', cpp: '.cpp', c: '.c' };
         const fileId = uuidv4();
         const fileName = `temp_${fileId}${ext[lang]}`;
         const filePath = path.join(__dirname, fileName);

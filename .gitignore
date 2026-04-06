@@ -1,6 +1,9 @@
 # 의존성 (이미 있으니 확인만!)
 node_modules/
 
+# 연습 파일
+practice/
+
 # 운영체제 쓰레기 파일
 .DS_Store
 Thumbs.db

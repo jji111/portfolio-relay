@@ -120,13 +120,20 @@ function analyzeTurn(oldCode, newCode, lang, playerId, lineAuthors) {
 
 function calcFinalScores(playerIds, structureScores, finalLineAuthors) {
     const finalResults = {};
-    playerIds.forEach((playerId) => {
+    const totalPlayers = playerIds.length;
+
+    playerIds.forEach((playerId, index) => {
+        const myOrder = index + 1; 
         const survivalRate = calcSurvivalRate(finalLineAuthors, playerId);
         const baseScore = structureScores[playerId] || 0;
+
+        const orderWeight = (totalPlayers - myOrder + 1) / totalPlayers;
+
         finalResults[playerId] = {
             baseScore,
             survivalRate,
-            finalScore: Math.round(baseScore * survivalRate)
+            orderWeight: Math.round(orderWeight * 100) / 100,
+            finalScore: Math.round(baseScore * orderWeight * survivalRate)
         };
     });
     return finalResults;

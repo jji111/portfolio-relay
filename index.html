@@ -1,0 +1,22 @@
+<html>
+<body>
+    <button onclick="makeRoom()">방 만들기</button>
+    <input id="roomIdInput" placeholder="방 코드 입력">
+    <button onclick="joinRoom()">방 참가하기</button>
+    <script>
+        function makeRoom(){
+            const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            window.location.href = `/game?room=${roomId}&type=create`;
+        }
+
+        function joinRoom(){
+            const roomId = document.getElementById('roomIdInput').value.trim().toUpperCase();
+            if(roomId){
+                window.location.href = `/game?room=${roomId}&type=join`;
+            } else {
+                alert('방 코드를 입력해주세요!');
+            }
+        }
+    </script>
+</body>
+</html>

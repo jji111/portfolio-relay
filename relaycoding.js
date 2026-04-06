@@ -1,4 +1,5 @@
 require('dotenv').config();
+const pool = require('./db');
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -16,6 +17,11 @@ const { generateProblemHandler } = require('./ai-generate');
 app.use(express.json({ limit: '64kb' }));
 
 app.get('/', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/game', (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'relaycoding.html'));
 });
@@ -61,46 +67,51 @@ function shuffle(arr) {
     return a;
 }
 
-const gameState = {
-    allParticipants: [],
-    turnQueue: [],
-    finishedPlayers: [],
-    currentCode: '',
-    currentLang: 'cpp',
-    structureScores: {},
-    lineAuthors: {},
-    turnLogs: [],
-    isGameStarted: false,
-    selectedProblem: null,
-    usedProblems: [],
-    totalScores: {},
-    timeLeft: 0,
-    timerInterval: null
-};
+const rooms = {};
 
-function getHostId() {
-    return gameState.allParticipants[0] || null;
+function createRoom(roomId) {
+    return {
+        id: roomId,
+        allParticipants: [],
+        turnQueue: [],
+        finishedPlayers: [],
+        currentCode: '',
+        currentLang: 'cpp',
+        structureScores: {},
+        lineAuthors: {},
+        turnLogs: [],
+        isGameStarted: false,
+        selectedProblem: null,
+        usedProblems: [],
+        totalScores: {},
+        timeLeft: 0,
+        timerInterval: null
+    };
 }
 
-function stopServerTimer() {
-    if (gameState.timerInterval) {
-        clearInterval(gameState.timerInterval);
-        gameState.timerInterval = null;
+function getHostId(roomId) {
+    return rooms[roomId].allParticipants[0] || null;
+}
+
+function stopServerTimer(roomId) {
+    if (rooms[roomId].timerInterval) {
+        clearInterval(rooms[roomId].timerInterval);
+        rooms[roomId].timerInterval = null;
     }
 }
 
-function startServerTimer(duration) {
-    stopServerTimer();
-    gameState.timeLeft = duration;
-    io.emit('timer_update', { timeLeft: gameState.timeLeft });
+function startServerTimer(duration, roomId) {
+    stopServerTimer(roomId);
+    rooms[roomId].timeLeft = duration;
+    io.to(roomId).emit('timer_update', { timeLeft: rooms[roomId].timeLeft });
 
-    gameState.timerInterval = setInterval(() => {
-        gameState.timeLeft--;
-        io.emit('timer_update', { timeLeft: gameState.timeLeft });
+    rooms[roomId].timerInterval = setInterval(() => {
+        rooms[roomId].timeLeft--;
+        io.to(roomId).emit('timer_update', { timeLeft: rooms[roomId].timeLeft });
 
-        if (gameState.timeLeft <= 0) {
-            stopServerTimer();
-            const currentPlayerId = gameState.turnQueue[0];
+        if (rooms[roomId].timeLeft <= 0) {
+            stopServerTimer(roomId);
+            const currentPlayerId = rooms[roomId].turnQueue[0];
             if (currentPlayerId) {
                 io.to(currentPlayerId).emit('force_pass');
             }
@@ -108,25 +119,25 @@ function startServerTimer(duration) {
     }, 1000);
 }
 
-function broadcastStatus() {
-    const playerList = gameState.allParticipants.map(id => id.substring(0, 6));
-    const queueList = gameState.turnQueue.map(id => id.substring(0, 6));
+function broadcastStatus(roomId) {
+    const playerList = rooms[roomId].allParticipants.map(id => id.substring(0, 6));
+    const queueList = rooms[roomId].turnQueue.map(id => id.substring(0, 6));
 
-    gameState.allParticipants.forEach((id) => {
-        const myQueueIndex = gameState.turnQueue.indexOf(id);
-        const isHost = id === getHostId();
+    rooms[roomId].allParticipants.forEach((id) => {
+        const myQueueIndex = rooms[roomId].turnQueue.indexOf(id);
+        const isHost = id === getHostId(roomId);
 
         io.to(id).emit('status_update', {
-            myOrder: myQueueIndex !== -1 ? myQueueIndex : (gameState.isGameStarted ? 0: (isHost ? 1 : 0)),
-            currentPlayer: gameState.turnQueue[0] || null,
-            currentCode: gameState.currentCode,
-            currentLang: gameState.currentLang,
-            totalRemaining: gameState.turnQueue.length,
-            isGameStarted: gameState.isGameStarted,
-            selectedProblem: gameState.selectedProblem,
-            usedProblems: gameState.usedProblems,
+            myOrder: myQueueIndex !== -1 ? myQueueIndex : (rooms[roomId].isGameStarted ? 0 : (isHost ? 1 : 0)),
+            currentPlayer: rooms[roomId].turnQueue[0] || null,
+            currentCode: rooms[roomId].currentCode,
+            currentLang: rooms[roomId].currentLang,
+            totalRemaining: rooms[roomId].turnQueue.length,
+            isGameStarted: rooms[roomId].isGameStarted,
+            selectedProblem: rooms[roomId].selectedProblem,
+            usedProblems: rooms[roomId].usedProblems,
             isHost,
-            totalPlayers: gameState.allParticipants.length,
+            totalPlayers: rooms[roomId].allParticipants.length,
             playerList,
             queueList,
             myId: id.substring(0, 6)
@@ -134,63 +145,63 @@ function broadcastStatus() {
     });
 }
 
-function handleTurnFinished(socketId, data) {
-    if (socketId !== gameState.turnQueue[0]) return;
+function handleTurnFinished(socketId, data, roomId) {
+    if (socketId !== rooms[roomId].turnQueue[0]) return;
 
     if (data.code && typeof data.code === 'string') {
         const lang = data.lang || 'cpp';
         const { structuralImpact, oldScore, newScore, breakdown, newLineAuthors } = analyzeTurn(
-            gameState.currentCode, data.code, lang, socketId, gameState.lineAuthors
+            rooms[roomId].currentCode, data.code, lang, socketId, rooms[roomId].lineAuthors
         );
 
-        gameState.currentCode = data.code;
-        gameState.currentLang = lang;
-        gameState.lineAuthors = newLineAuthors;
-        gameState.structureScores[socketId] = (gameState.structureScores[socketId] || 0) + structuralImpact;
+        rooms[roomId].currentCode = data.code;
+        rooms[roomId].currentLang = lang;
+        rooms[roomId].lineAuthors = newLineAuthors;
+        rooms[roomId].structureScores[socketId] = (rooms[roomId].structureScores[socketId] || 0) + structuralImpact;
 
-        const turnNum = gameState.finishedPlayers.length + 1;
+        const turnNum = rooms[roomId].finishedPlayers.length + 1;
         const breakdownStr = Object.entries(breakdown)
             .map(([type, count]) => `${type}(${count}개)`)
             .join(', ');
 
-        gameState.turnLogs.push(
+        rooms[roomId].turnLogs.push(
             `[턴 ${turnNum}] 플레이어 ${socketId.substring(0, 5)}\n` +
             `  - 이전 점수: ${oldScore}  현재 점수: ${newScore}  기여도: +${structuralImpact}\n` +
             `  - 사용된 구조: ${breakdownStr || '없음'}\n`
         );
     }
 
-    const finishedPlayer = gameState.turnQueue.shift();
-    gameState.finishedPlayers.push(finishedPlayer);
+    const finishedPlayer = rooms[roomId].turnQueue.shift();
+    rooms[roomId].finishedPlayers.push(finishedPlayer);
 
-    if (gameState.turnQueue.length > 0) {
-        startServerTimer(gameState.selectedProblem.timeLimit);
+    if (rooms[roomId].turnQueue.length > 0) {
+        startServerTimer(rooms[roomId].selectedProblem.timeLimit, roomId);
     } else {
-        stopServerTimer();
+        stopServerTimer(roomId);
     }
 
-    checkGameOver();
-    broadcastStatus();
+    checkGameOver(roomId);
+    broadcastStatus(roomId);
 }
 
-function checkGameOver() {
-    if (gameState.turnQueue.length === 0 && gameState.finishedPlayers.length > 0) {
+function checkGameOver(roomId) {
+    if (rooms[roomId].turnQueue.length === 0 && rooms[roomId].finishedPlayers.length > 0) {
         console.log('\n--- 전체 턴 진행 상세 로그 ---');
-        gameState.turnLogs.forEach(log => console.log(log));
+        rooms[roomId].turnLogs.forEach(log => console.log(log));
 
         const roundResults = calcFinalScores(
-            gameState.finishedPlayers,
-            gameState.structureScores,
-            gameState.lineAuthors
+            rooms[roomId].finishedPlayers,
+            rooms[roomId].structureScores,
+            rooms[roomId].lineAuthors
         );
 
         Object.entries(roundResults).forEach(([id, stats]) => {
-            gameState.totalScores[id] = (gameState.totalScores[id] || 0) + stats.finalScore;
+            rooms[roomId].totalScores[id] = (rooms[roomId].totalScores[id] || 0) + stats.finalScore;
         });
 
         const finalScores = {};
         Object.entries(roundResults).forEach(([id, stats]) => {
-            finalScores[id] = { ...stats, totalScore: gameState.totalScores[id] || 0 };
+            finalScores[id] = { ...stats, totalScore: rooms[roomId].totalScores[id] || 0 };
         });
 
         console.log('\n--- 최종 성적표 ---');
@@ -198,89 +209,127 @@ function checkGameOver() {
             console.log(`플레이어 [${id.substring(0, 5)}] => 이번 라운드: ${stats.finalScore}pt / 누적: ${stats.totalScore}pt`);
         });
 
-        io.emit('game_over', { finalScores });
+        io.to(roomId).emit('game_over', { finalScores });
     }
 }
 
 io.on('connection', (socket) => {
-    gameState.allParticipants.push(socket.id);
-    gameState.totalScores[socket.id] = gameState.totalScores[socket.id] || 0;
 
-    console.log(`새로운 접속: ${socket.id} (현재 인원: ${gameState.allParticipants.length}명)`);
-    broadcastStatus();
+    socket.on('create_room', async (data) => {
+        const roomId = data.roomId;
+        socket.roomId = roomId;
+        socket.join(roomId);
+        rooms[roomId] = createRoom(roomId);
+        await pool.query('INSERT INTO rooms (id) VALUES ($1)', [roomId]);
+        rooms[roomId].allParticipants.push(socket.id);
+        rooms[roomId].totalScores[socket.id] = 0;
+        broadcastStatus(roomId);
+    });
+
+    socket.on('join_room', async (data) => {
+        const roomId = data.roomId;
+
+        const result = await pool.query('SELECT id FROM rooms WHERE id = $1', [roomId]);
+        if (result.rowCount === 0) {
+
+            socket.emit('room_not_found');
+            return;
+        }
+
+        socket.roomId = roomId;
+        socket.join(roomId);
+
+        if(!rooms[roomId]) {
+            rooms[roomId] = createRoom(roomId);
+        }
+
+        if(!rooms[roomId].allParticipants.includes(socket.id)) {
+            rooms[roomId].allParticipants.push(socket.id);
+            rooms[roomId].totalScores[socket.id] = 0;
+        }
+
+        broadcastStatus(roomId);
+    });
 
     socket.on('lang_update', (data) => {
-        if (socket.id !== gameState.turnQueue[0]) return;
+        const roomId = socket.roomId;
+        if (socket.id !== rooms[roomId].turnQueue[0]) return;
         const ALLOWED = ['python', 'cpp', 'c'];
         if (ALLOWED.includes(data.lang)) {
-            gameState.currentLang = data.lang;
+            rooms[roomId].currentLang = data.lang;
         }
     });
 
     socket.on('select_problem', (problem) => {
-        if (socket.id !== getHostId() || gameState.isGameStarted) return;
+        const roomId = socket.roomId;
+        if (socket.id !== getHostId(roomId) || rooms[roomId].isGameStarted) return;
         const found = problems.find(p => p.id === problem.id);
-        if (!found || gameState.usedProblems.includes(found.id)) return;
-        gameState.selectedProblem = found;
+        if (!found || rooms[roomId].usedProblems.includes(found.id)) return;
+        rooms[roomId].selectedProblem = found;
         console.log(`문제 미리보기: ${found.title}`);
-        broadcastStatus();
+        broadcastStatus(roomId);
     });
 
     socket.on('start_test', () => {
-        if (socket.id !== getHostId() || !gameState.selectedProblem || gameState.isGameStarted) return;
+        const roomId = socket.roomId;
+        if (socket.id !== getHostId(roomId) || !rooms[roomId].selectedProblem || rooms[roomId].isGameStarted) return;
 
-        gameState.isGameStarted = true;
-        const rest = shuffle(gameState.allParticipants.filter(id => id !== getHostId()));
-        gameState.turnQueue = [getHostId(), ...rest];
-        gameState.finishedPlayers = [];
-        gameState.currentCode = '';
-        gameState.currentLang = 'cpp';
-        gameState.structureScores = {};
-        gameState.lineAuthors = {};
-        gameState.turnLogs = [];
+        rooms[roomId].isGameStarted = true;
+        const rest = shuffle(rooms[roomId].allParticipants.filter(id => id !== getHostId(roomId)));
+        rooms[roomId].turnQueue = [getHostId(roomId), ...rest];
+        rooms[roomId].finishedPlayers = [];
+        rooms[roomId].currentCode = '';
+        rooms[roomId].currentLang = 'cpp';
+        rooms[roomId].structureScores = {};
+        rooms[roomId].lineAuthors = {};
+        rooms[roomId].turnLogs = [];
 
-        if (!gameState.usedProblems.includes(gameState.selectedProblem.id)) {
-            gameState.usedProblems.push(gameState.selectedProblem.id);
+        if (!rooms[roomId].usedProblems.includes(rooms[roomId].selectedProblem.id)) {
+            rooms[roomId].usedProblems.push(rooms[roomId].selectedProblem.id);
         }
 
         console.log(`\n--- 테스트 시작 ---`);
-        console.log(`문제: ${gameState.selectedProblem.title}`);
-        console.log(`셔플된 순서: ${gameState.turnQueue.map(id => id.substring(0, 5)).join(' → ')}`);
+        console.log(`문제: ${rooms[roomId].selectedProblem.title}`);
+        console.log(`셔플된 순서: ${rooms[roomId].turnQueue.map(id => id.substring(0, 5)).join(' → ')}`);
 
-        io.emit('problem_locked', gameState.selectedProblem);
-        startServerTimer(gameState.selectedProblem.timeLimit);
-        broadcastStatus();
+        io.to(roomId).emit('problem_locked', rooms[roomId].selectedProblem);
+        startServerTimer(rooms[roomId].selectedProblem.timeLimit, roomId);
+        broadcastStatus(roomId);
     });
 
     socket.on('turn_finished', (data) => {
-        handleTurnFinished(socket.id, data);
+        const roomId = socket.roomId;
+        handleTurnFinished(socket.id, data, roomId);
     });
 
     socket.on('request_restart', () => {
+        const roomId = socket.roomId;
         console.log('\n--- 새 라운드 시작 ---');
-        stopServerTimer();
-        gameState.allParticipants = shuffle(gameState.allParticipants);
-        console.log(`새 방장: ${gameState.allParticipants[0].substring(0, 5)}`);
-        gameState.isGameStarted = false;
-        gameState.selectedProblem = null;
-        gameState.turnQueue = [];
-        io.emit('game_reset');
-        broadcastStatus();
+        stopServerTimer(roomId);
+        rooms[roomId].allParticipants = shuffle(rooms[roomId].allParticipants);
+        console.log(`새 방장: ${rooms[roomId].allParticipants[0].substring(0, 5)}`);
+        rooms[roomId].isGameStarted = false;
+        rooms[roomId].selectedProblem = null;
+        rooms[roomId].turnQueue = [];
+        io.to(roomId).emit('game_reset');
+        broadcastStatus(roomId);
     });
 
     socket.on('disconnect', () => {
+        const roomId = socket.roomId;
+        if(!roomId || !rooms[roomId]) return;
         console.log(`접속 종료: ${socket.id}`);
-        const wasCurrentTurn = gameState.turnQueue[0] === socket.id;
-        gameState.allParticipants = gameState.allParticipants.filter(id => id !== socket.id);
-        gameState.turnQueue = gameState.turnQueue.filter(id => id !== socket.id);
+        const wasCurrentTurn = rooms[roomId].turnQueue[0] === socket.id;
+        rooms[roomId].allParticipants = rooms[roomId].allParticipants.filter(id => id !== socket.id);
+        rooms[roomId].turnQueue = rooms[roomId].turnQueue.filter(id => id !== socket.id);
         if (wasCurrentTurn) {
-            stopServerTimer();
-            if (gameState.turnQueue.length > 0) {
-                startServerTimer(gameState.selectedProblem.timeLimit);
+            stopServerTimer(roomId);
+            if (rooms[roomId].turnQueue.length > 0) {
+                startServerTimer(rooms[roomId].selectedProblem.timeLimit, roomId);
             }
-            checkGameOver();
+            checkGameOver(roomId);
         }
-        broadcastStatus();
+        broadcastStatus(roomId);
     });
 });
 
