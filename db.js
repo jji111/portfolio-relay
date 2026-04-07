@@ -1,11 +1,8 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false } // Railway 는 SSL 필요
 });
 
 pool.connect((err, client, release) => {
@@ -13,7 +10,7 @@ pool.connect((err, client, release) => {
         console.error('DB 연결 실패:', err.message);
     } else {
         console.log('DB 연결 성공!');
-        release(); 
+        release();
     }
 });
 
