@@ -184,7 +184,7 @@ function handleTurnFinished(socketId, data, roomId) {
     broadcastStatus(roomId);
 }
 
-function checkGameOver(roomId) {
+async function checkGameOver(roomId) {
     if (rooms[roomId].turnQueue.length === 0 && rooms[roomId].finishedPlayers.length > 0) {
         console.log('\n--- 전체 턴 진행 상세 로그 ---');
         rooms[roomId].turnLogs.forEach(log => console.log(log));
@@ -209,6 +209,13 @@ function checkGameOver(roomId) {
             console.log(`플레이어 [${id.substring(0, 5)}] => 이번 라운드: ${stats.finalScore}pt / 누적: ${stats.totalScore}pt`);
         });
 
+        for (const [id, stats] of Object.entries(finalScores)) {
+            await pool.query(
+                'INSERT INTO scores (socket_id, room_id, round_score, total_score) VALUES ($1, $2, $3, $4)',
+                [id, roomId, stats.finalScore, stats.totalScore]
+            );
+        }
+
         io.to(roomId).emit('game_over', { finalScores });
     }
 }
@@ -221,6 +228,7 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         rooms[roomId] = createRoom(roomId);
         await pool.query('INSERT INTO rooms (id) VALUES ($1)', [roomId]);
+        await pool.query('INSERT INTO players (socket_id, room_id) VALUES ($1, $2)', [socket.id, roomId]);
         rooms[roomId].allParticipants.push(socket.id);
         rooms[roomId].totalScores[socket.id] = 0;
         broadcastStatus(roomId);
@@ -236,14 +244,15 @@ io.on('connection', (socket) => {
             return;
         }
 
+        await pool.query('INSERT INTO players (socket_id, room_id) VALUES ($1, $2)', [socket.id, roomId]);
         socket.roomId = roomId;
         socket.join(roomId);
 
-        if(!rooms[roomId]) {
+        if (!rooms[roomId]) {
             rooms[roomId] = createRoom(roomId);
         }
 
-        if(!rooms[roomId].allParticipants.includes(socket.id)) {
+        if (!rooms[roomId].allParticipants.includes(socket.id)) {
             rooms[roomId].allParticipants.push(socket.id);
             rooms[roomId].totalScores[socket.id] = 0;
         }
@@ -315,9 +324,12 @@ io.on('connection', (socket) => {
         broadcastStatus(roomId);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const roomId = socket.roomId;
-        if(!roomId || !rooms[roomId]) return;
+        if (!roomId || !rooms[roomId]) return;
+
+        await pool.query('DELETE FROM players WHERE socket_id = $1', [socket.id]);
+        
         console.log(`접속 종료: ${socket.id}`);
         const wasCurrentTurn = rooms[roomId].turnQueue[0] === socket.id;
         rooms[roomId].allParticipants = rooms[roomId].allParticipants.filter(id => id !== socket.id);
@@ -329,7 +341,15 @@ io.on('connection', (socket) => {
             }
             checkGameOver(roomId);
         }
+
         broadcastStatus(roomId);
+
+        if (rooms[roomId].allParticipants.length === 0) {
+                await pool.query('DELETE FROM players WHERE room_id = $1', [roomId]);
+                await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);       
+                delete rooms[roomId];
+            
+        }
     });
 });
 

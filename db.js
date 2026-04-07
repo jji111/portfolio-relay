@@ -8,13 +8,12 @@ const pool = new Pool({
     password: process.env.DB_PASSWORD,
 });
 
-// 연결 확인
 pool.connect((err, client, release) => {
     if (err) {
         console.error('DB 연결 실패:', err.message);
     } else {
         console.log('DB 연결 성공!');
-        release(); // 연결 반납
+        release(); 
     }
 });
 
