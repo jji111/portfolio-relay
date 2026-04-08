@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>릴레이 코딩 테스트</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <style>
         * {
@@ -509,7 +510,6 @@
         <button class="restart-btn" onclick="requestRestart()">새 라운드 시작</button>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         let monacoEditor;
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
