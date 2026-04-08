@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Railway 는 SSL 필요
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 pool.connect((err, client, release) => {
