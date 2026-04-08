@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>릴레이 코딩 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -233,8 +234,16 @@
             line-height: 1.5;
         }
 
-        #code-editor {
+        #code-editor-container {
             flex: 1;
+            border: 1px solid #333;
+            min-height: 0;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #code-editor-container.my-turn {
+            border-color: #569cd6;
+            box-shadow: 0 0 10px rgba(86, 156, 214, 0.2);
         }
 
         #input-area {
@@ -244,11 +253,6 @@
         textarea:disabled {
             background: #0e0e0e;
             color: #444;
-        }
-
-        textarea.my-turn {
-            border-color: #569cd6;
-            box-shadow: 0 0 10px rgba(86, 156, 214, 0.2);
         }
 
         .btn-group {
@@ -483,7 +487,7 @@
         </div>
         <div id="editor-area">
             <div id="queue-status">상태 로딩 중...</div>
-            <textarea id="code-editor" disabled></textarea>
+            <div id="code-editor-container"></div>
             <div class="btn-group">
                 <select id="lang-select">
                     <option value="cpp">C++</option>
@@ -507,6 +511,40 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Monaco 초기화
+        let monacoEditor;
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            monacoEditor = monaco.editor.create(document.getElementById('code-editor-container'), {
+                value: '',
+                language: 'cpp',
+                theme: 'vs-dark',
+                readOnly: true,
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                fontFamily: "'Courier New', monospace",
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                tabSize: 4,
+            });
+        });
+
+        // Monaco 헬퍼 함수들
+        function getCode() { return monacoEditor ? monacoEditor.getValue() : ''; }
+        function setCode(val) { if (monacoEditor) monacoEditor.setValue(val || ''); }
+        function setReadOnly(flag) { if (monacoEditor) monacoEditor.updateOptions({ readOnly: flag }); }
+        function setEditorHighlight(flag) {
+            const el = document.getElementById('code-editor-container');
+            if (flag) el.classList.add('my-turn');
+            else el.classList.remove('my-turn');
+        }
+        function setEditorLang(lang) {
+            if (!monacoEditor) return;
+            const map = { cpp: 'cpp', python: 'python', c: 'c' };
+            monaco.editor.setModelLanguage(monacoEditor.getModel(), map[lang] || 'cpp');
+        }
+
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>'"]/g, tag => ({
@@ -556,7 +594,9 @@
 
         document.getElementById('lang-select').onchange = () => {
             if (!isMyTurn) return;
-            socket.emit('lang_update', { lang: document.getElementById('lang-select').value });
+            const lang = document.getElementById('lang-select').value;
+            setEditorLang(lang);
+            socket.emit('lang_update', { lang });
         };
 
         function showToast(msg, duration = 3000) {
@@ -643,7 +683,6 @@
 
             isGameStarted = data.isGameStarted;
             isHost = data.isHost;
-            const editor = document.getElementById('code-editor');
             const turnInfo = document.getElementById('turn-info');
             const startBtn = document.getElementById('start-btn');
             const langSelect = document.getElementById('lang-select');
@@ -659,7 +698,8 @@
             }
 
             if (!isGameStarted) {
-                editor.disabled = true;
+                setReadOnly(true);
+                setEditorHighlight(false);
                 document.getElementById('run-btn').disabled = true;
                 document.getElementById('pass-btn').disabled = true;
 
@@ -688,22 +728,23 @@
             startBtn.style.display = 'none';
 
             if (!isMyTurn) {
-                editor.value = data.currentCode;
+                setCode(data.currentCode);
                 langSelect.value = data.currentLang;
+                setEditorLang(data.currentLang);
             }
 
             if (socket.id === data.currentPlayer) {
                 isMyTurn = true;
-                editor.disabled = false;
-                editor.classList.add('my-turn');
+                setReadOnly(false);
+                setEditorHighlight(true);
                 document.getElementById('run-btn').disabled = false;
                 document.getElementById('pass-btn').disabled = false;
                 turnInfo.className = 'my-turn-text';
                 turnInfo.innerText = '내 차례';
             } else {
                 isMyTurn = false;
-                editor.disabled = true;
-                editor.classList.remove('my-turn');
+                setReadOnly(true);
+                setEditorHighlight(false);
                 document.getElementById('run-btn').disabled = true;
                 document.getElementById('pass-btn').disabled = true;
                 turnInfo.className = 'waiting-text';
@@ -816,7 +857,9 @@
             document.getElementById('game-over-modal').style.display = 'none';
             document.querySelectorAll('.problem-item').forEach(el => el.classList.remove('active', 'locked', 'previewing'));
             document.getElementById('problem-desc').innerText = '문제를 선택하세요.';
-            document.getElementById('code-editor').value = '';
+            setCode('');
+            setReadOnly(true);
+            setEditorHighlight(false);
             document.getElementById('result').innerText = '결과 표시창';
             document.getElementById('input-area').value = '';
             document.getElementById('timer').innerText = '--:--';
@@ -831,7 +874,7 @@
             if (!isMyTurn) return;
             const runBtn = document.getElementById('run-btn');
             const passBtn = document.getElementById('pass-btn');
-            const code = document.getElementById('code-editor').value;
+            const code = getCode();
             const lang = document.getElementById('lang-select').value;
             const input = document.getElementById('input-area').value;
             const resultDiv = document.getElementById('result');
@@ -865,7 +908,7 @@
             if (!isMyTurn) return;
             const runBtn = document.getElementById('run-btn');
             const passBtn = document.getElementById('pass-btn');
-            const code = document.getElementById('code-editor').value;
+            const code = getCode();
             const lang = document.getElementById('lang-select').value;
             const resultDiv = document.getElementById('result');
 
@@ -905,24 +948,12 @@
 
             isMyTurn = false;
             currentPlayerShown = null;
-            const editor = document.getElementById('code-editor');
-            editor.disabled = true;
-            editor.classList.remove('my-turn');
+            setReadOnly(true);
+            setEditorHighlight(false);
 
             socket.emit('turn_finished', { code, lang });
         }
 
-        window.onload = function () {
-            document.getElementById('code-editor').addEventListener('keydown', function (e) {
-                if (e.key === 'Tab') {
-                    e.preventDefault();
-                    const start = this.selectionStart;
-                    const end = this.selectionEnd;
-                    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
-                    this.selectionStart = this.selectionEnd = start + 4;
-                }
-            });
-        };
 
         async function generateProblem() {
             const btn = document.getElementById('ai-gen-btn');
