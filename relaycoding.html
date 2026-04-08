@@ -509,9 +509,8 @@
         <button class="restart-btn" onclick="requestRestart()">새 라운드 시작</button>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
-        // Monaco 초기화
         let monacoEditor;
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
         require(['vs/editor/editor.main'], function () {
@@ -530,7 +529,7 @@
             });
         });
 
-        // Monaco 헬퍼 함수들
+        // Monaco 헬퍼 함수들 자주 쓰는 애들 정리
         function getCode() { return monacoEditor ? monacoEditor.getValue() : ''; }
         function setCode(val) { if (monacoEditor) monacoEditor.setValue(val || ''); }
         function setReadOnly(flag) { if (monacoEditor) monacoEditor.updateOptions({ readOnly: flag }); }
