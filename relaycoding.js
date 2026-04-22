@@ -223,15 +223,20 @@ async function checkGameOver(roomId) {
 io.on('connection', (socket) => {
 
     socket.on('create_room', async (data) => {
-        const roomId = data.roomId;
-        socket.roomId = roomId;
-        socket.join(roomId);
-        rooms[roomId] = createRoom(roomId);
-        await pool.query('INSERT INTO rooms (id) VALUES ($1)', [roomId]);
-        await pool.query('INSERT INTO players (socket_id, room_id) VALUES ($1, $2)', [socket.id, roomId]);
-        rooms[roomId].allParticipants.push(socket.id);
-        rooms[roomId].totalScores[socket.id] = 0;
-        broadcastStatus(roomId);
+        try {
+            const roomId = data.roomId;
+            socket.roomId = roomId;
+            socket.join(roomId);
+            rooms[roomId] = createRoom(roomId);
+            await pool.query('INSERT INTO rooms (id) VALUES ($1)', [roomId]);
+            await pool.query('INSERT INTO players (socket_id, room_id) VALUES ($1, $2)', [socket.id, roomId]);
+            if (!rooms[roomId]) return;
+            rooms[roomId].allParticipants.push(socket.id);
+            rooms[roomId].totalScores[socket.id] = 0;
+            broadcastStatus(roomId);
+        } catch (err) {
+            console.error('create_room 에러:', err.message);
+        }
     });
 
     socket.on('join_room', async (data) => {
